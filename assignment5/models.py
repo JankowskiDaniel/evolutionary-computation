@@ -1,6 +1,19 @@
 from dataclasses import dataclass
 from enum import Enum
 
+"""Tutaj mamy wszystkie datamodele potrzebne do rozwiązania problemu.
+    Wszystkie klasy są immutable, czyli po utworzeniu obiektu nie można go zmienić.
+    Podstawowym typem jest klasa Node, później Edge, który zbudowany jest z dwóch Nodów:
+    source i destination. Klasa Solution jest zbudowana z listy Node'ów, jej property edges
+    od razu przy zadeklarowaniu obiektu Solution deklaruje dodatkowy parametr edges, i to jest
+    list[Edges]. Klasa Move jest zbudowana z dwóch klas: RemovedEdges i AddedEdges, które są
+    zbiorem Edges. Wszystkie klasy mają zaimplementowane __str__ i __repr__ metody, żeby można
+    było je ładnie wyświetlać w konsoli. W klasie Move jest też zaimplementowane __lt__ żeby
+    można było użyć Move jako elementu w heapq, który jest używany w algorytmie (nie jest to ważne,
+    musi to być tylko po to żeby heapq nie krzyczał, że nie może porównać elementów, gdy delta jest
+    sama dla obu).
+"""
+
 
 @dataclass(frozen=True)
 class Node:

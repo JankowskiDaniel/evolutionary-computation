@@ -14,6 +14,9 @@ from models import (
 )
 
 class MoveTracker:
+    """Podstawowy tracker ruchów (nasz LM), który dodaje ruchy do kolejki
+    i zawsze trzyma je posortowane po delcie.
+    """
     def __init__(self):
         self.moves_heap = []
         self.moves_set = set()
@@ -83,7 +86,7 @@ class SteepestLocalSearch():
 
         return 1 if all_edges_match else 0
     
-    
+
     def is_inter_move_applicable(self, solution: Solution, move: Move) -> Literal[-1, 0, 1]:
         solution_nodes = set((node.index, node.cost) for node in solution.nodes)
         
@@ -123,6 +126,10 @@ class SteepestLocalSearch():
 
         return 1 if all_edges_match else 0
         
+        
+    """Tutaj na pewno jest jakiś bug, bo jak odpalimy z two_edges to jest deadlock i while w order_edges
+    leci w nieskończoność (nie jest w stanie znaleźć ścieżki)
+    """
     def two_edges_exchange(self,
                             start_index: int = 0,
                             direction: str = "right") -> None:
@@ -169,7 +176,8 @@ class SteepestLocalSearch():
                             +self.distance_matrix[self.current_solution.nodes[i].index][self.current_solution.nodes[j].index]
                             +self.distance_matrix[self.current_solution.nodes[i + 1].index][self.current_solution.nodes[(j + 1) % n].index]
                         )
-                        self.tracker.add_move(move, score_delta)
+                        if score_delta < 0:
+                            self.tracker.add_move(move, score_delta)
                 count += 1  # Increment the counter after checking the condition
     
     def two_nodes_exchange(self, start_index=0, direction='right'):
@@ -324,7 +332,12 @@ class SteepestLocalSearch():
             #     -self.costs[selected_node]
             #     +self.costs[new_node]
             # )
-            
+          
+    """Tutaj można się zastanowić czy nie da się lepiej jakoś układać nodów
+    nowego solution. Musimy mieć na pewno przestawione, bo na jego podstawie
+    robimy nowego ruchy, ale iterowanie po wszystkich edgach jest mega wolne,
+    więc może jest lepszy sposób
+    """  
     def order_edges(self, edges: list[Edge]) -> list[Edge]:
         if not edges:
             return []
