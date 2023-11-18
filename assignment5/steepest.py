@@ -7,6 +7,7 @@ from models import (
     Edge,
     RemovedEdges,
     AddedEdges,
+    ReversedEdges,
     Move,
     Solution,
     Node,
@@ -147,7 +148,7 @@ class SteepestLocalSearch():
         """
         n = len(self.current_solution.nodes)
 
-        if direction == "right":
+        if direction == "right": 
             range_i = range(n - 2)
             range_j = lambda i: range(i + 2, n)
         else:  # direction == "left"
@@ -155,7 +156,7 @@ class SteepestLocalSearch():
             range_j = lambda i: range(n - 1, i + 1, -1)
         count = 0
         for i in range_i:
-            for j in range_j(i):
+            for j in range_j(i): 
                 if count >= start_index:
                     
                     # Construct a move
@@ -163,7 +164,18 @@ class SteepestLocalSearch():
                                                   Edge(self.current_solution.nodes[j], self.current_solution.nodes[(j + 1) % n])))
                     added_edges = AddedEdges((Edge(self.current_solution.nodes[i], self.current_solution.nodes[j]),
                                               Edge(self.current_solution.nodes[i + 1], self.current_solution.nodes[(j + 1) % n])))
-                    move = Move(removed_edges, added_edges, MoveType.intra_two_edges_exchange)
+                    #dla sprawdzenia czy działa
+                    # print(self.current_solution)
+                    # print("removed edges:", self.current_solution.nodes[i], self.current_solution.nodes[(i+1)%n])
+                    # print("removed edges:", self.current_solution.nodes[j], self.current_solution.nodes[(j+1)%n])
+                    # print("added edges:", self.current_solution.nodes[i], self.current_solution.nodes[j])
+                    # print("added edges:", self.current_solution.nodes[(i+1)%n], self.current_solution.nodes[(j+1)%n])
+                    reversed_edges = []
+                    for k in range(i+1,j):
+                        # print(self.current_solution.nodes[k+1],self.current_solution.nodes[k])
+                        reversed_edges.append(Edge(self.current_solution.nodes[k],self.current_solution.nodes[k+1]))
+                    reversed_edges= ReversedEdges(tuple(reversed_edges))
+                    move = Move(removed_edges, added_edges, reversed_edges, MoveType.intra_two_edges_exchange)
                     
                     # check if a move exists, if not add to the LM
                     if self.tracker.move_exists(move):
@@ -183,6 +195,7 @@ class SteepestLocalSearch():
     def two_nodes_exchange(self, start_index=0, direction='right'):
         n = len(self.current_solution.nodes)
         total_moves = n * (n - 1) // 2  # Total number of possible swaps
+        reversed_edges=ReversedEdges(tuple())
 
         index_pairs = [(x, y) for x in range(n) for y in range(x+1, n)]
         # Adjust the indices list based on the direction
@@ -200,7 +213,7 @@ class SteepestLocalSearch():
                 added_edges = AddedEdges((Edge(self.current_solution.nodes[j], self.current_solution.nodes[1]),
                                             Edge(self.current_solution.nodes[j-1], self.current_solution.nodes[0]),
                                             Edge(self.current_solution.nodes[0], self.current_solution.nodes[j])))
-                move = Move(removed_edges, added_edges, MoveType.intra_two_nodes_exchange)
+                move = Move(removed_edges, added_edges,reversed_edges, MoveType.intra_two_nodes_exchange)
                 
                 if move in self.tracker.moves_set:
                     continue
@@ -225,7 +238,7 @@ class SteepestLocalSearch():
                 added_edges = AddedEdges((Edge(self.current_solution.nodes[i-1], self.current_solution.nodes[j]),
                                             Edge(self.current_solution.nodes[i], self.current_solution.nodes[(j+1)%n]),
                                             Edge(self.current_solution.nodes[(i+1)%n], self.current_solution.nodes[i])))
-                move = Move(removed_edges, added_edges, MoveType.intra_two_nodes_exchange)
+                move = Move(removed_edges, added_edges,reversed_edges, MoveType.intra_two_nodes_exchange)
                 if move in self.tracker.moves_set:
                     continue
                 else:
@@ -255,7 +268,7 @@ class SteepestLocalSearch():
                                             Edge(self.current_solution.nodes[j-1], self.current_solution.nodes[i]),
                                             Edge(self.current_solution.nodes[i], self.current_solution.nodes[(j+1)%n]),
                                             Edge(self.current_solution.nodes[j], self.current_solution.nodes[(i+1)%n])))
-                move = Move(removed_edges, added_edges, MoveType.intra_two_nodes_exchange)
+                move = Move(removed_edges, added_edges, reversed_edges, MoveType.intra_two_nodes_exchange)
                 if move in self.tracker.moves_set:
                     continue
                 else:
@@ -300,13 +313,14 @@ class SteepestLocalSearch():
             new_solution[i]: Node = new_node
             prev_node_index = (i - 1) % n_selected
             next_node_index = (i + 1) % n_selected
+            reversed_edges=ReversedEdges(tuple())
             
             removed_edges = RemovedEdges((Edge(self.current_solution.nodes[prev_node_index], selected_node),
                                           Edge(selected_node, self.current_solution.nodes[next_node_index])))
             added_edges = AddedEdges((Edge(self.current_solution.nodes[prev_node_index], new_node),
                                         Edge(new_node, self.current_solution.nodes[next_node_index])))
             
-            move = Move(removed_edges, added_edges, MoveType.inter_route_exchange)
+            move = Move(removed_edges, added_edges, reversed_edges,  MoveType.inter_route_exchange)
             
             if move in self.tracker.moves_set:
                 continue
@@ -363,6 +377,15 @@ class SteepestLocalSearch():
             self.unselected_nodes.remove(move.added_edges.edges[1].src)
         
         modified_edges = list(self.current_solution.edges)
+
+        #Inverse the edges in move.reversed_edges from the list 
+        for edge in move.reversed_edges.edges:
+            if edge not in modified_edges: 
+                return ValueError
+            else:
+                modified_edges.remove(edge)
+                inverted_edge=Edge(edge.dst,edge.src)
+                modified_edges.append(inverted_edge)
 
         # Step 2: Remove edges in move.removed_edges from the list
         for edge in move.removed_edges.edges:
@@ -433,6 +456,7 @@ class SteepestLocalSearch():
                     progress = True
                     break
 
+
             # rebuild the heap
             for item in temp_moves:
                 heapq.heappush(self.tracker.moves_heap, item)
@@ -441,6 +465,7 @@ class SteepestLocalSearch():
             if epoch_counter % 5 == 0 and show_progress:
                 print(f"Epoch: {epoch_counter}, Score: {self.current_score}")
                 # print(self.tracker.moves_heap)
+        print(objective_function(self.current_solution,self.distance_matrix, self.costs),self.current_score)
                 
             
 
@@ -456,7 +481,7 @@ if __name__ == "__main__":
                                    costs=costs)
     start = time.time()
     steepest.run(start_solution=initial_solution,
-                 moves=["inter-route-exchange", "intra-two-nodes-exchange"],
+                 moves=["inter-route-exchange", "intra-two-edges-exchange"],
                  show_progress=True)
     end = time.time()
     print("Runtime: ", end - start)

@@ -56,6 +56,22 @@ class RemovedEdges:
 
     def __hash__(self):
         return hash(frozenset(self.edges))
+    
+@dataclass(frozen=True)
+class ReversedEdges:
+    edges: tuple[Edge]
+
+    def __eq__(self, other):
+        if isinstance(other, ReversedEdges):
+            return frozenset(self.edges) == frozenset(other.edges)
+        return False
+
+    def __hash__(self):
+        return hash(frozenset(self.edges))
+    
+    def invert_edge(self, edge_to_invert):
+        return Edge(src=edge_to_invert.dst, dst=edge_to_invert.src)
+
 
 
 @dataclass(frozen=True)
@@ -81,12 +97,14 @@ class MoveType(Enum):
 class Move:
     removed_edges: RemovedEdges
     added_edges: AddedEdges
+    reversed_edges: ReversedEdges
     type: MoveType
 
     def __eq__(self, other):
         if isinstance(other, Move):
             return (self.removed_edges == other.removed_edges and 
                     self.added_edges == other.added_edges and
+                    self.reversed_edges == other.reversed_edges and 
                     self.type == other.type)
         return False
 
@@ -101,5 +119,6 @@ class Move:
     def __str__(self):
         removed_edges_str = ' , '.join(f"{edge.src.index}->{edge.dst.index}" for edge in self.removed_edges.edges)
         added_edges_str = ' , '.join(f"{edge.src.index}->{edge.dst.index}" for edge in self.added_edges.edges)
+        reversed_edges_str = ' , '.join(f"{edge.src.index}->{edge.dst.index}" for edge in self.reversed_edges.edges)
 
-        return f"Move:\n  Type: {self.type}\n   Removed Edges: {removed_edges_str}\n  Added Edges: {added_edges_str}"
+        return f"Move:\n  Type: {self.type}\n   Removed Edges: {removed_edges_str}\n  Added Edges: {added_edges_str}\n  Reversed Edges {reversed_edges_str}"
