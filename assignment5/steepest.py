@@ -13,7 +13,7 @@ from models import (
     Node,
     MoveType
 )
-
+from collections import defaultdict
 class MoveTracker:
     """Podstawowy tracker ruchów (nasz LM), który dodaje ruchy do kolejki
     i zawsze trzyma je posortowane po delcie.
@@ -378,31 +378,56 @@ class SteepestLocalSearch():
         
         modified_edges = list(self.current_solution.edges)
 
-        #Inverse the edges in move.reversed_edges from the list 
-        for edge in move.reversed_edges.edges:
-            if edge not in modified_edges: 
-                return ValueError
-            else:
-                modified_edges.remove(edge)
-                inverted_edge=Edge(edge.dst,edge.src)
-                modified_edges.append(inverted_edge)
 
         # Step 2: Remove edges in move.removed_edges from the list
-        for edge in move.removed_edges.edges:
-            if edge in modified_edges:
-                modified_edges.remove(edge)
+        if move.type != MoveType.intra_two_edges_exchange:
+            indeces=[]
+            for edge in move.removed_edges.edges:
+                
+                if edge in modified_edges:
+                    index = modified_edges.index(edge)
+                    indeces.append(index)
+                    
+            count=0 
+            for idx,edge in enumerate(move.added_edges.edges):
+                
+                dst1=edge.dst.index
+                for idx2,edge2 in enumerate(move.added_edges.edges):
+                    src2=edge2.src.index
+                    
+                    if dst1==src2 and count<2:
+                        count+=1
+                        modified_edges[indeces[idx]]=edge
+                        modified_edges[(indeces[idx]+1)%len(modified_edges)]=edge2 
 
-        # Step 3: Add edges in move.added_edges to the list
-        modified_edges.extend(move.added_edges.edges)
-        # print(modified_edges)
-        ordered_edges = self.order_edges(modified_edges)
-        # Step 5: Convert the ordered list of edges to a list of nodes
+        else: 
+            indeces=[]
+            for edge in move.removed_edges.edges:
+                
+                if edge in modified_edges:
+                    index = modified_edges.index(edge)
+                    indeces.append(index)
+
+            for index, edge in enumerate(move.added_edges.edges):
+                modified_edges[indeces[index]]=edge
+
+            start = indeces[0]
+            end = indeces[1]   
+            for index,edge in enumerate(move.reversed_edges.edges):
+
+                inverted_edge = Edge(edge.dst,edge.src)
+
+                modified_edges[end-index-1]=inverted_edge
+                
+
+
+        ordered_edges = modified_edges
         nodes_in_order = [ordered_edges[0].src] + [edge.dst for edge in ordered_edges[:-1]]
 
-        # Step 6: Create and return a new Solution object
+            # Step 6: Create and return a new Solution object
         self.current_solution = Solution(nodes=nodes_in_order)
         self.current_score += score
-        
+            
     
     def run(self, 
             start_solution: Solution,
@@ -414,7 +439,7 @@ class SteepestLocalSearch():
         if len(moves) != 2:
             raise ValueError("Only two moves are supported")
         
-        if start_solution is not None:
+        if start_solution is not None: 
             self.current_solution = start_solution
             
             self.current_score = objective_function(start_solution, self.distance_matrix, self.costs)    
@@ -445,14 +470,15 @@ class SteepestLocalSearch():
                     # we have to then re-add it to the heap
                     temp_moves.append((score, move))
                 else: # we apply this move
-                    print("###############")
-                    print(f"Applying move: {move.type}, Score: {score}")
-                    print(f"Old solution: {self.current_solution}")
-                    print(f"Move: {move}")
+                    # print("###############")
+                    # print(f"Applying move: {move.type}, Score: {score}")
+                    # print(f"Old solution: {self.current_solution}")
+                    # print(f"Move: {move}")
+
                     # if move.type == MoveType.inter_route_exchange:
                     #     print(self.unselected_nodes)
                     self.apply_move(move, score)
-                    print("New solution: ", self.current_solution)
+                    # print("New solution: ", self.current_solution)
                     progress = True
                     break
 
