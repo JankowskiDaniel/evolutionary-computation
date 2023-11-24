@@ -1,13 +1,16 @@
 import heapq
 import random
 from typing import Literal
+import copy
+import time
+from tqdm import tqdm
 import time
 from utils import *
 from models import (
     Edge,
     RemovedEdges,
     AddedEdges,
-    ReversedEdges,
+
     Move,
     Solution,
     Node,
@@ -170,12 +173,8 @@ class SteepestLocalSearch():
                     # print("removed edges:", self.current_solution.nodes[j], self.current_solution.nodes[(j+1)%n])
                     # print("added edges:", self.current_solution.nodes[i], self.current_solution.nodes[j])
                     # print("added edges:", self.current_solution.nodes[(i+1)%n], self.current_solution.nodes[(j+1)%n])
-                    reversed_edges = []
-                    for k in range(i+1,j):
-                        # print(self.current_solution.nodes[k+1],self.current_solution.nodes[k])
-                        reversed_edges.append(Edge(self.current_solution.nodes[k],self.current_solution.nodes[k+1]))
-                    reversed_edges= ReversedEdges(tuple(reversed_edges))
-                    move = Move(removed_edges, added_edges, reversed_edges, MoveType.intra_two_edges_exchange)
+
+                    move = Move(removed_edges, added_edges, MoveType.intra_two_edges_exchange)
                     
                     # check if a move exists, if not add to the LM
                     if self.tracker.move_exists(move):
@@ -195,7 +194,7 @@ class SteepestLocalSearch():
     def two_nodes_exchange(self, start_index=0, direction='right'):
         n = len(self.current_solution.nodes)
         total_moves = n * (n - 1) // 2  # Total number of possible swaps
-        reversed_edges=ReversedEdges(tuple())
+
 
         index_pairs = [(x, y) for x in range(n) for y in range(x+1, n)]
         # Adjust the indices list based on the direction
@@ -213,7 +212,7 @@ class SteepestLocalSearch():
                 added_edges = AddedEdges((Edge(self.current_solution.nodes[j], self.current_solution.nodes[1]),
                                             Edge(self.current_solution.nodes[j-1], self.current_solution.nodes[0]),
                                             Edge(self.current_solution.nodes[0], self.current_solution.nodes[j])))
-                move = Move(removed_edges, added_edges,reversed_edges, MoveType.intra_two_nodes_exchange)
+                move = Move(removed_edges, added_edges, MoveType.intra_two_nodes_exchange)
                 
                 if move in self.tracker.moves_set:
                     continue
@@ -238,7 +237,7 @@ class SteepestLocalSearch():
                 added_edges = AddedEdges((Edge(self.current_solution.nodes[i-1], self.current_solution.nodes[j]),
                                             Edge(self.current_solution.nodes[i], self.current_solution.nodes[(j+1)%n]),
                                             Edge(self.current_solution.nodes[(i+1)%n], self.current_solution.nodes[i])))
-                move = Move(removed_edges, added_edges,reversed_edges, MoveType.intra_two_nodes_exchange)
+                move = Move(removed_edges, added_edges, MoveType.intra_two_nodes_exchange)
                 if move in self.tracker.moves_set:
                     continue
                 else:
@@ -268,7 +267,7 @@ class SteepestLocalSearch():
                                             Edge(self.current_solution.nodes[j-1], self.current_solution.nodes[i]),
                                             Edge(self.current_solution.nodes[i], self.current_solution.nodes[(j+1)%n]),
                                             Edge(self.current_solution.nodes[j], self.current_solution.nodes[(i+1)%n])))
-                move = Move(removed_edges, added_edges, reversed_edges, MoveType.intra_two_nodes_exchange)
+                move = Move(removed_edges, added_edges,  MoveType.intra_two_nodes_exchange)
                 if move in self.tracker.moves_set:
                     continue
                 else:
@@ -313,14 +312,14 @@ class SteepestLocalSearch():
             new_solution[i]: Node = new_node
             prev_node_index = (i - 1) % n_selected
             next_node_index = (i + 1) % n_selected
-            reversed_edges=ReversedEdges(tuple())
+
             
             removed_edges = RemovedEdges((Edge(self.current_solution.nodes[prev_node_index], selected_node),
                                           Edge(selected_node, self.current_solution.nodes[next_node_index])))
             added_edges = AddedEdges((Edge(self.current_solution.nodes[prev_node_index], new_node),
                                         Edge(new_node, self.current_solution.nodes[next_node_index])))
             
-            move = Move(removed_edges, added_edges, reversed_edges,  MoveType.inter_route_exchange)
+            move = Move(removed_edges, added_edges,  MoveType.inter_route_exchange)
             
             if move in self.tracker.moves_set:
                 continue
@@ -375,9 +374,8 @@ class SteepestLocalSearch():
         if move.type == MoveType.inter_route_exchange:
             self.unselected_nodes.append(move.removed_edges.edges[1].src)
             self.unselected_nodes.remove(move.added_edges.edges[1].src)
-        
-        modified_edges = list(self.current_solution.edges)
 
+        modified_edges = list(self.current_solution.edges)
 
         # Step 2: Remove edges in move.removed_edges from the list
         if move.type != MoveType.intra_two_edges_exchange:
@@ -389,42 +387,99 @@ class SteepestLocalSearch():
                     indeces.append(index)
                     
             count=0 
+            alredy_added=[]
             for idx,edge in enumerate(move.added_edges.edges):
                 
                 dst1=edge.dst.index
                 for idx2,edge2 in enumerate(move.added_edges.edges):
                     src2=edge2.src.index
-                    
-                    if dst1==src2 and count<2:
+                
+                    if dst1==src2:
+                        # print(modified_edges)
+                        # print(edge.src.index, edge.dst.index)
+                        # print(edge2.src.index, edge2.dst.index)
+                        # print(indeces[idx])
                         count+=1
-                        modified_edges[indeces[idx]]=edge
-                        modified_edges[(indeces[idx]+1)%len(modified_edges)]=edge2 
+                        # print(indeces)
+                        if edge not in alredy_added:
+                            # print((indeces[idx]),edge, "tutaj")
+                            modified_edges[indeces[idx]]=edge
+                            alredy_added.append(edge)
+                        
+                        
+
+                        if edge2 not in alredy_added:
+                            # print(edge)
+                            # print(modified_edges[-1])
+
+                            # print((indeces[idx]+1)%10,edge2, "tutaj2")
+                            
+                            if modified_edges[-1].src==edge.src and modified_edges[-1].dst==edge.dst and edge in alredy_added:
+                                # print("udało się ")
+                                modified_edges[0]=edge2
+                            else:
+
+                                modified_edges[(indeces[idx]+1)%len(modified_edges)]=edge2
+                            alredy_added.append(edge2)
+                        
+
+
+            # print(alredy_added) 
+            # print("######################")
+            # print(modified_edges)
+            # print(modified_edges[-1])
+                        
+
+
 
         else: 
             indeces=[]
+            #find the indeces between which the edges have to be inverted 
             for edge in move.removed_edges.edges:
                 
                 if edge in modified_edges:
                     index = modified_edges.index(edge)
                     indeces.append(index)
 
-            for index, edge in enumerate(move.added_edges.edges):
-                modified_edges[indeces[index]]=edge
 
             start = indeces[0]
             end = indeces[1]   
-            for index,edge in enumerate(move.reversed_edges.edges):
+            l=[]
+            #invert the edges that have to be inverted 
+            if start<end:
+                for idx in range (start+1,end):
+                    inverted_edge = Edge(modified_edges[idx].dst,modified_edges[idx].src)
+                    l.append(inverted_edge)
+                count=0
+                #revert a list of inverted edges 
+                l=l[::-1]
 
-                inverted_edge = Edge(edge.dst,edge.src)
+                #finnaly replace the edges 
+                for idx in range (start+1,end):
 
-                modified_edges[end-index-1]=inverted_edge
-                
+                    modified_edges[idx]=l[count]
+                    count+=1
 
+            else: 
+                for idx in range(start, len(modified_edges)):
+                    inverted_edge = Edge(modified_edges[idx].dst,modified_edges[idx].src)
+                    l.append(inverted_edge)
+                for idx in range(end):
+                    inverted_edge = Edge(modified_edges[idx].dst,modified_edges[idx].src)
+                    l.append(inverted_edge)
+                l=l[::-1]
+                count=0
+                for idx in range(start+1, len(modified_edges)):
+                    modified_edges[idx]=l.pop(0)
 
-        ordered_edges = modified_edges
-        nodes_in_order = [ordered_edges[0].src] + [edge.dst for edge in ordered_edges[:-1]]
+                for idx in range(end):
+                    modified_edges[idx]=l.pop(0)         
+            # add the edges
+            for index, edge in enumerate(move.added_edges.edges):
+                modified_edges[indeces[index]] = edge
 
-            # Step 6: Create and return a new Solution object
+        nodes_in_order = [modified_edges[0].src] + [edge.dst for edge in modified_edges[:-1]]
+
         self.current_solution = Solution(nodes=nodes_in_order)
         self.current_score += score
             
@@ -479,6 +534,10 @@ class SteepestLocalSearch():
                     #     print(self.unselected_nodes)
                     self.apply_move(move, score)
                     # print("New solution: ", self.current_solution)
+                    # if self.current_score!=objective_function(self.current_solution,self.distance_matrix, self.costs):
+                    #     print("Scores not equal:", objective_function(self.current_solution,self.distance_matrix, self.costs),self.current_score)
+                    #     breakpoint()
+
                     progress = True
                     break
 
@@ -491,26 +550,69 @@ class SteepestLocalSearch():
             if epoch_counter % 5 == 0 and show_progress:
                 print(f"Epoch: {epoch_counter}, Score: {self.current_score}")
                 # print(self.tracker.moves_heap)
-        print(objective_function(self.current_solution,self.distance_matrix, self.costs),self.current_score)
+        return self.current_solution, self.current_score, epoch_counter
+        
                 
             
 
 
 if __name__ == "__main__":
-    a = pd.read_csv("data/TSPA.csv", sep=';', header=None, names=["x", "y", "cost"])
-    distance_matrix = calculate_distance_matrix(a)
-    costs = a["cost"].to_numpy()
-    initial_solution = generate_random_solution(100, costs)
+    instances = {
+    "A": pd.read_csv("data/TSPA.csv", sep=';', header=None, names=["x", "y", "cost"]),
+    "B": pd.read_csv("data/TSPB.csv", sep=';', header=None, names=["x", "y", "cost"]),
+    "C": pd.read_csv("data/TSPC.csv", sep=';', header=None, names=["x", "y", "cost"]),
+    "D": pd.read_csv("data/TSPD.csv", sep=';', header=None, names=["x", "y", "cost"]),
+}   
     
-    steepest = SteepestLocalSearch(initial_solution=initial_solution,
-                                   distance_matrix=distance_matrix,
-                                   costs=costs)
-    start = time.time()
-    steepest.run(start_solution=initial_solution,
-                 moves=["inter-route-exchange", "intra-two-edges-exchange"],
-                 show_progress=True)
-    end = time.time()
-    print("Runtime: ", end - start)
+    best_solutions = {}
+    trials = 200
+    for instance in instances:
+        distance_matrix = calculate_distance_matrix(instances[instance])
+        costs = instances[instance]["cost"].to_numpy()
+        trials = 200
+        solutions = []
+        runtimes = []
+        for i in tqdm(range(trials)):
+            start_time = time.time()
+            random_solution = generate_random_solution(100,costs)
+            s = SteepestLocalSearch(initial_solution=random_solution,
+                                distance_matrix=distance_matrix, 
+                                costs=costs)
+            solution, score, epoch = s.run(random_solution, ["inter-route-exchange", "intra-two-nodes-exchange"], show_progress=False)
+            end_time = time.time()
+            solutions.append((solution, score))
+            runtimes.append(end_time - start_time)
+
+        print("Solution-steepes-random-inter-route-two-nodes-",instance)
+        print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
+        print("Runtimes steepes-random-inter-route-two-nodes-",instance)
+        print(f"Average runtime: {np.mean(runtimes)}, min runtime: {min(runtimes)}, max runtime: {max(runtimes)}")
+        best_solution = min(solutions, key=lambda x: x[1])
+        best_solutions["steepes-random-inter-route-two-nodes-",instance] = best_solution
+    
+    for instance in instances:
+
+        distance_matrix = calculate_distance_matrix(instances[instance])
+        costs = instances[instance]["cost"].to_numpy()
+        trials = 200
+        solutions = []
+        runtimes = []
+        for i in tqdm(range(trials)):
+            start_time = time.time()
+            random_solution = generate_random_solution(100,costs)
+            s = SteepestLocalSearch(initial_solution=random_solution,
+                                distance_matrix=distance_matrix, 
+                                costs=costs)
+            solution, score, epoch = s.run(random_solution, ["inter-route-exchange", "intra-two-nodes-exchange"], show_progress=False)
+            end_time = time.time()
+            solutions.append((solution, score))
+            runtimes.append(end_time - start_time)
+        print("Solution-steepes-random-inter-route-two-nodes-",instance)
+        print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
+        print("Runtimes steepes-random-inter-route-two-nodes-",instance)
+        print(f"Average runtime: {np.mean(runtimes)}, min runtime: {min(runtimes)}, max runtime: {max(runtimes)}")
+        best_solution = min(solutions, key=lambda x: x[1])
+        best_solutions["steepes-random-inter-route-two-edges-",instance] = best_solution
         
         
             
