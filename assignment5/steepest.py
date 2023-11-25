@@ -245,8 +245,10 @@ class SteepestLocalSearch():
                     score_delta = (
                         -self.distance_matrix[self.current_solution.nodes[i-1].index][self.current_solution.nodes[i].index]
                         -self.distance_matrix[self.current_solution.nodes[j].index][self.current_solution.nodes[(j+1)%n].index]
+                        -self.distance_matrix[self.current_solution.nodes[i].index][self.current_solution.nodes[(i+1)%n].index]
                         +self.distance_matrix[self.current_solution.nodes[i-1].index][self.current_solution.nodes[j].index]
                         +self.distance_matrix[self.current_solution.nodes[i].index][self.current_solution.nodes[(j+1)%n].index]
+                        +self.distance_matrix[self.current_solution.nodes[(i+1)%n].index][self.current_solution.nodes[i].index]
                     )
                     if score_delta < 0:
                         self.tracker.add_move(move, score_delta)
