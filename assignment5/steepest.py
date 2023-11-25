@@ -559,6 +559,7 @@ class SteepestLocalSearch():
 
 
 if __name__ == "__main__":
+    import json
     instances = {
     "A": pd.read_csv("data/TSPA.csv", sep=';', header=None, names=["x", "y", "cost"]),
     "B": pd.read_csv("data/TSPB.csv", sep=';', header=None, names=["x", "y", "cost"]),
@@ -568,7 +569,8 @@ if __name__ == "__main__":
     
     best_solutions = {}
     trials = 200
-    for instance in instances:
+    op = ["C", "D"]
+    for instance in op:
         distance_matrix = calculate_distance_matrix(instances[instance])
         costs = instances[instance]["cost"].to_numpy()
         trials = 200
@@ -580,41 +582,45 @@ if __name__ == "__main__":
             s = SteepestLocalSearch(initial_solution=random_solution,
                                 distance_matrix=distance_matrix, 
                                 costs=costs)
-            solution, score, epoch = s.run(random_solution, ["inter-route-exchange", "intra-two-nodes-exchange"], show_progress=False)
+            solution, score, epoch = s.run(random_solution, ["inter-route-exchange", "intra-two-edges-exchange"], show_progress=False)
             end_time = time.time()
             solutions.append((solution, score))
             runtimes.append(end_time - start_time)
-
-        print("Solution-steepes-random-inter-route-two-nodes-",instance)
+        print("Solution-steepes-random-inter-route-two-edges-",instance)
         print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
-        print("Runtimes steepes-random-inter-route-two-nodes-",instance)
+        print("Runtimes steepes-random-inter-route-two-edges-",instance)
         print(f"Average runtime: {np.mean(runtimes)}, min runtime: {min(runtimes)}, max runtime: {max(runtimes)}")
         best_solution = min(solutions, key=lambda x: x[1])
-        best_solutions["steepes-random-inter-route-two-nodes-",instance] = best_solution
+        path = best_solution[0].nodes
+        path = [n.index for n in path]
+        best_solutions[f"steepest-random-inter-route-two-edges-{instance}-path"] = path
+        best_solutions[f"steepest-random-inter-route-two-edges-{instance}-score"] = best_solution[1]
+    with open(f"results_two_edges-second-part.json", "w") as f:
+        json.dump(best_solutions, f, indent=4)
     
-    for instance in instances:
+    # for instance in instances:
 
-        distance_matrix = calculate_distance_matrix(instances[instance])
-        costs = instances[instance]["cost"].to_numpy()
-        trials = 200
-        solutions = []
-        runtimes = []
-        for i in tqdm(range(trials)):
-            start_time = time.time()
-            random_solution = generate_random_solution(100,costs)
-            s = SteepestLocalSearch(initial_solution=random_solution,
-                                distance_matrix=distance_matrix, 
-                                costs=costs)
-            solution, score, epoch = s.run(random_solution, ["inter-route-exchange", "intra-two-nodes-exchange"], show_progress=False)
-            end_time = time.time()
-            solutions.append((solution, score))
-            runtimes.append(end_time - start_time)
-        print("Solution-steepes-random-inter-route-two-nodes-",instance)
-        print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
-        print("Runtimes steepes-random-inter-route-two-nodes-",instance)
-        print(f"Average runtime: {np.mean(runtimes)}, min runtime: {min(runtimes)}, max runtime: {max(runtimes)}")
-        best_solution = min(solutions, key=lambda x: x[1])
-        best_solutions["steepes-random-inter-route-two-edges-",instance] = best_solution
+    #     distance_matrix = calculate_distance_matrix(instances[instance])
+    #     costs = instances[instance]["cost"].to_numpy()
+    #     trials = 200
+    #     solutions = []
+    #     runtimes = []
+    #     for i in tqdm(range(trials)):
+    #         start_time = time.time()
+    #         random_solution = generate_random_solution(100,costs)
+    #         s = SteepestLocalSearch(initial_solution=random_solution,
+    #                             distance_matrix=distance_matrix, 
+    #                             costs=costs)
+    #         solution, score, epoch = s.run(random_solution, ["inter-route-exchange", "intra-two-nodes-exchange"], show_progress=False)
+    #         end_time = time.time()
+    #         solutions.append((solution, score))
+    #         runtimes.append(end_time - start_time)
+    #     print("Solution-steepes-random-inter-route-two-nodes-",instance)
+    #     print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
+    #     print("Runtimes steepes-random-inter-route-two-nodes-",instance)
+    #     print(f"Average runtime: {np.mean(runtimes)}, min runtime: {min(runtimes)}, max runtime: {max(runtimes)}")
+    #     best_solution = min(solutions, key=lambda x: x[1])
+    #     best_solutions["steepes-random-inter-route-two-edges-",instance] = best_solution
         
         
             
