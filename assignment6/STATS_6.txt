@@ -1,0 +1,22 @@
+
+
+Solutions for instance-A
+Average score: 78371.0, min score: 75636.0, max score: 82716.0
+Runtimes for instance-A
+Average runtime: 96.51506420373917, min runtime: 95.50206136703491, max runtime: 97.42344236373901
+Best_score 75636.0
+Solutions for instance-B
+Average score: 72607.1, min score: 68759.0, max score: 76999.0
+Runtimes for instance-B
+Average runtime: 98.41253433227538, min runtime: 97.72016096115112, max runtime: 99.80400967597961
+Best_score 68759.0
+Solutions for instance-C
+Average score: 51750.7, min score: 49872.0, max score: 53063.0
+Runtimes for instance-C
+Average runtime: 95.92240039110183, min runtime: 95.30196905136108, max runtime: 96.60605597496033
+Best_score 49872.0
+Solutions for instance-D
+Average score: 49096.95, min score: 47685.0, max score: 51184.0
+Runtimes for instance-D
+Average runtime: 96.64699566364288, min runtime: 96.13005304336548, max runtime: 97.36699414253235
+Best_score 47685.0
