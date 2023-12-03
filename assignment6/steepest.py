@@ -272,10 +272,6 @@ def perturb(current_solution: list[int],
                        distance_matrix: list[list[int]]):
     l = len(current_solution)
     for x in range(4):
-        # for y in range(3):
-        #     z = random.randint(0,l-1)
-        #     z2 = random.randint(0,l-1)
-        #     current_solution[z],current_solution[z2]=current_solution[z2],current_solution[z]
         i = random.randint(2,l-2)
 
         j = random.randint(0,i-1)
@@ -287,21 +283,11 @@ def perturb(current_solution: list[int],
         new_solution = (current_solution[:j ] 
                     + current_solution[j :i ][::-1] 
                     + current_solution[i :])
-        # added_edge_1 = distance_matrix[new_solution[j-1]][new_solution[j]]
-        # added_edge_2 = distance_matrix[new_solution[i-1]][new_solution[i % l]]
-        # removed_edge_1 = distance_matrix[current_solution[i-1]][current_solution[i]]
-        # removed_edge_2 = distance_matrix[current_solution[(j-1+l) % l]][current_solution[j]]
-        # current_distance = current_distance + added_edge_1 + added_edge_2 - removed_edge_1 - removed_edge_2
         current_solution = new_solution
-        # print(current_solution)
         new_solution = (current_solution[:m ] 
                     + current_solution[m :k ][::-1] 
                     + current_solution[k :])
-        # added_edge_1 = distance_matrix[new_solution[m-1]][new_solution[m]]
-        # added_edge_2 = distance_matrix[new_solution[k-1]][new_solution[k % l]]
-        # removed_edge_1 = distance_matrix[current_solution[m-1]][current_solution[m]]
-        # removed_edge_2 = distance_matrix[current_solution[(k-1+l) % l]][current_solution[k%l]]
-        # current_distance = current_distance + added_edge_1 + added_edge_2 - removed_edge_1 - removed_edge_2
+
         current_solution = new_solution
 
 
@@ -326,44 +312,44 @@ if __name__ == "__main__":
     from tqdm import tqdm            
 
 
-    # best_solutions_MSLS = {}
-    # runtimes = []
-    # trials = 200
-    # global_runtimes = {}
-    # for instance in instances: 
-    #     global_runtimes[instance]=[]
-    #     distance_matrix = calculate_distance_matrix(instances[instance])
-    #     costs = instances[instance]["cost"].to_numpy()
-    #     solutions = []
-    #     runtimes = []
-    #     best_solution=[]
+    best_solutions_MSLS = {}
+    runtimes = []
+    trials = 200
+    global_runtimes = {}
+    for instance in instances: 
+        global_runtimes[instance]=[]
+        distance_matrix = calculate_distance_matrix(instances[instance])
+        costs = instances[instance]["cost"].to_numpy()
+        solutions = []
+        runtimes = []
+        best_solution=[]
         
-    #     for x in range(20):
-    #         start_time = time.time()
-    #         best_score=float('inf')
-    #         for i in tqdm(range(trials)):
-    #             random_solution = generate_random_solution(100)
-    #             s = SteepestLocalSearch(initial_solution=random_solution,
-    #                         distance_matrix=distance_matrix, 
-    #                         costs=costs,)
-    #             solution, score= s.run(random_solution, ["inter","edges"], show_progress=False)
+        for x in range(20):
+            start_time = time.time()
+            best_score=float('inf')
+            for i in tqdm(range(trials)):
+                random_solution = generate_random_solution(100)
+                s = SteepestLocalSearch(initial_solution=random_solution,
+                            distance_matrix=distance_matrix, 
+                            costs=costs,)
+                solution, score= s.run(random_solution, ["inter","edges"], show_progress=False)
                 
-    #             if best_score<score:
-    #                 best_score=score
-    #                 best_solution=solution
-    #         solutions.append((solution, score))
-    #         end_time = time.time()
-    #         runtimes.append(end_time-start_time)
-    #         global_runtimes[instance].append(end_time-start_time)
-    #     print("Solutions for instance-"+instance)
-    #     print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
-    #     print("Runtimes for instance-"+instance)
-    #     print(f"Average runtime: {np.mean(runtimes)}, min runtime: {min(runtimes)}, max runtime: {max(runtimes)}")
-    #     best_solution = min(solutions, key=lambda x: x[1])
-    #     best_path = min(solutions, key=lambda x: x[0])
-    #     best_solutions_MSLS["MSL-best-path"+str(instance)] = best_path
-    #     best_solutions_MSLS["MSL-best-score-"+str(instance)] = best_solution
-    #     print("Best_score",best_solution[1])
+                if best_score>score:
+                    best_score=score
+                    best_solution=solution
+            solutions.append((best_solution, best_score))
+            end_time = time.time()
+            runtimes.append(end_time-start_time)
+            global_runtimes[instance].append(end_time-start_time)
+        print("Solutions for instance-"+instance)
+        print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
+        print("Runtimes for instance-"+instance)
+        print(f"Average runtime: {np.mean(runtimes)}, min runtime: {min(runtimes)}, max runtime: {max(runtimes)}")
+        best_solution = min(solutions, key=lambda x: x[1])
+        best_path = min(solutions, key=lambda x: x[0])
+        best_solutions_MSLS["MSL-best-path"+str(instance)] = best_path
+        best_solutions_MSLS["MSL-best-score-"+str(instance)] = best_solution
+        print("Best_score",best_solution[1])
     import json
     # with open("best_solutions_MSLS.json", "w") as f:
     #     json.dump(best_solutions_MSLS, f, indent=4)

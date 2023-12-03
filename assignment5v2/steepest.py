@@ -267,6 +267,36 @@ class SteepestLocalSearch():
                 print(f"Epoch {n_epoch}: {self.current_score}, {self.current_solution}")
         return self.current_solution, self.current_score
     
+def perturb(current_solution: list[int], 
+                       current_distance: float, 
+                       distance_matrix: list[list[int]]):
+    l = len(current_solution)
+    for x in range(4):
+        i = random.randint(2,l-2)
+
+        j = random.randint(0,i-1)
+
+        k = random.randint(j+2,l)
+
+        m = random.randint(0,k-1)
+
+        new_solution = (current_solution[:j ] 
+                    + current_solution[j :i ][::-1] 
+                    + current_solution[i :])
+
+        current_solution = new_solution
+        # print(current_solution)
+        new_solution = (current_solution[:m ] 
+                    + current_solution[m :k ][::-1] 
+                    + current_solution[k :])
+
+        current_solution = new_solution
+
+
+
+
+    return current_solution
+    
     
 if __name__ == "__main__":
     instances = {
@@ -275,34 +305,32 @@ if __name__ == "__main__":
         "C": pd.read_csv("data/TSPC.csv", sep=';', header=None, names=["x", "y", "cost"]),
         "D": pd.read_csv("data/TSPD.csv", sep=';', header=None, names=["x", "y", "cost"]),
     } 
-    instance = instances["D"]
-    distance_matrix = calculate_distance_matrix(instance)
-    costs = instance["cost"].to_numpy()
-    import time
-    from tqdm import tqdm
-    solutions = []
-    runtimes = []
-    best_solutions = dict()
-    for i in tqdm(range(200)):
-        start = time.time()
-        solution = generate_random_solution(100)
-        s = SteepestLocalSearch(solution, distance_matrix, costs)
-        solution, score = s.run(solution, ["inter","edges"], show_progress=False)
-        end = time.time()
-        solutions.append((solution, score))
-        runtimes.append(end - start)
-    print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
-    print(f"Average runtime: {np.mean(runtimes)}, min runtime: {min(runtimes)}, max runtime: {max(runtimes)}")
-    best_solution = min(solutions, key=lambda x: x[1])
-    path = best_solution[0]
-    path = [n for n in path]
-    best_solutions[f"path"] = path
-    best_solutions[f"score"] = best_solution[1]
-    import json
-    with open(f"results_D.json", "w") as f:
-        json.dump(best_solutions, f)            
+    for inst in instances:
+        instance = instances[inst]
+        distance_matrix = calculate_distance_matrix(instance)
+        costs = instance["cost"].to_numpy()
+        import time
+        from tqdm import tqdm
+        solutions = []
+        runtimes = []
+        best_solutions = dict()
+        for i in tqdm(range(200)):
+            start = time.time()
+            solution = generate_random_solution(100)
+            s = SteepestLocalSearch(solution, distance_matrix, costs)
+            solution, score = s.run(solution, ["inter","edges"], show_progress=False)
+            end = time.time()
+            solutions.append((solution, score))
+            runtimes.append(end - start)
+        print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
+        print(f"{np.mean(runtimes)}({min(runtimes)}-{max(runtimes)})")
+
                 
-                
+
+
+    
+        
+
                 
             
             
