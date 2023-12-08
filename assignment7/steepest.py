@@ -295,24 +295,19 @@ def perturb(current_solution: list[int],
 
 
     return current_solution
-
-def generate_greedy_regret(dist_matrix, current_solution, num_select):
+def generate_greedy_weight_regret(dist_matrix, current_solution, num_select, a, start_idx):
     num_nodes = dist_matrix.shape[0]
-    # num_select = (num_nodes + 1) // 2  # Selecting 50% of the nodes
-
-    # Initialize the cycle with the start_node
-    selected_nodes = current_solution
+    selected_nodes = current_solution[start_idx:]+current_solution[:start_idx]
+    start=selected_nodes[-1]
     unselected_nodes = set(range(num_nodes)) - set(current_solution)
-
-    # Initialize the total distance to 0
     total_distance = 0
 
     # Continue until we've selected the required number of nodes
     while len(selected_nodes) < num_select:
-        regret_node = None
-        regret_position = None
-        best_regret= float('-inf')
-        regret_best_increase = float('inf')
+        score_node = None
+        score_position = None
+        best_score= float('-inf')
+        score_best_increase = float('inf')
         # Evaluate the insertion of each unselected node
         for node in unselected_nodes:
             best_node = None
@@ -320,7 +315,7 @@ def generate_greedy_regret(dist_matrix, current_solution, num_select):
             best_min_increase = float('inf')
             second_best_min_increase = float('inf')
             # Try inserting between each pair of consecutive nodes in the cycle
-            for i in range(len(selected_nodes)):
+            for i in range(selected_nodes.index(start),len(selected_nodes)):
                 # Calculate the increase in distance
                 next_i = (i + 1) % len(selected_nodes)
                 increase = (dist_matrix[selected_nodes[i], node] +
@@ -328,7 +323,6 @@ def generate_greedy_regret(dist_matrix, current_solution, num_select):
                             dist_matrix[selected_nodes[i], selected_nodes[next_i]])
                 
                 # Check if it is the best position
-                
                 if increase < second_best_min_increase: 
                     if increase < best_min_increase:
                         best_min_increase = increase
@@ -339,18 +333,19 @@ def generate_greedy_regret(dist_matrix, current_solution, num_select):
                         second_best_min_increase = increase
             #for a given unselected node after checking all of the positions and finding two best increases, we calculate regret
             regret= second_best_min_increase - best_min_increase
+            score = a * regret - (1-a)*best_min_increase
             # for keeping track of the best regret so far and best corresponding node, position and increase
-            if regret > best_regret:
-                best_regret = regret
-                regret_node =  best_node
-                regret_position = best_position 
-                regret_best_increase = best_min_increase
+            if score > best_score:
+                best_score = score
+                score_node =  best_node
+                score_position = best_position 
+                score_best_increase = best_min_increase
                     
 
         # Insert the best node into the cycle
-        selected_nodes.insert(regret_position, regret_node)
-        unselected_nodes.remove(regret_node)
-        total_distance += regret_best_increase
+        selected_nodes.insert(score_position, score_node)
+        unselected_nodes.remove(score_node)
+        total_distance += score_best_increase
         
 
     # Complete the cycle
@@ -358,21 +353,24 @@ def generate_greedy_regret(dist_matrix, current_solution, num_select):
 
     return selected_nodes
 
+
+
 def destroy(current_solution: list[int]):
     n = len(current_solution)
 
     subset_length = random.randint(int(0.2 * n), int(0.3 * n))
     start_index = random.randint(0, n)
+    start=current_solution[start_index-1]
     if start_index + subset_length > n:
         solution = current_solution[start_index+subset_length-n:start_index]
     else: 
         solution = current_solution[:start_index] + current_solution[start_index + subset_length:]
     # print(solution)
-    return solution
+    return solution, start
     
-def repair(current_solution: list[int],distance_matrix: list[list[int]], num_nodes):
-    #todo
-    selected_nodes = generate_greedy_regret(distance_matrix, current_solution, num_nodes)
+def repair(current_solution: list[int],distance_matrix: list[list[int]], num_nodes, start_node):
+    start_idx= current_solution.index(start_node)+1
+    selected_nodes = generate_greedy_weight_regret(distance_matrix, current_solution, num_nodes, 0.5, start_idx)
     return selected_nodes
     
     
@@ -385,8 +383,71 @@ if __name__ == "__main__":
         "C": pd.read_csv("data/TSPC.csv", sep=';', header=None, names=["x", "y", "cost"]),
         "D": pd.read_csv("data/TSPD.csv", sep=';', header=None, names=["x", "y", "cost"]),
     } 
+    # with open("Results/runtimes_MSLS_means.json", "r") as f:
+    #     means= json.load(f)
+    # best_solutions_LSNS={}
+    # for instance in instances: 
+    #     solutions = []
+    #     runtimes = [] 
+    #     best_solution=[]
+    #     distance_matrix = calculate_distance_matrix(instances[instance])
+    #     costs = instances[instance]["cost"].to_numpy()
+    #     epochs=[]
+    #     for x in range(20):
+    #         solution= generate_random_solution(100)
+    #         s = SteepestLocalSearch(solution, distance_matrix, costs)
+    #         solution, score = s.run(solution, ["inter","edges"], show_progress=False)
+    #         best_score=score
+    #         best_solution=solution
+    #         start=time.time()
+    #         i=0
+    #         while time.time()-start<means[instance]:
+    #             i+=1
+                
+    #             destroyed, start_idx = destroy(best_solution)
+    #             repaired = repair(destroyed, distance_matrix, 100, start_idx)
+
+                
+    #             s = SteepestLocalSearch(repaired, distance_matrix, costs)
+    #             solution, score = s.run(repaired, ["inter","edges"], show_progress=False)
+    #             if score<best_score:
+    #                 best_score=score
+    #                 best_solution=solution
+
+                
+    #         epochs.append(i)
+    #         solutions.append((best_solution,best_score))
+    #         end_time = time.time()
+    #         runtimes.append(end_time-start)
+    #         print("Best_score",best_score, objective_function(best_solution,distance_matrix, costs))
+
+    #     print("Solutions for instance-"+instance)
+    #     print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
+    #     print("Runtimes for instance-"+instance)
+    #     print(f"Average runtime: {np.mean(runtimes)}, min runtime: {min(runtimes)}, max runtime: {max(runtimes)}")
+    #     print(f"Avg number of iterations:{np.mean(epochs)}")
+    #     best_solution = min(solutions, key=lambda x: x[1])
+    #     best_solutions_LSNS["LSNS-best-score-"+str(instance)] = best_solution
+
+    #     with open("Results/best_solutions_LSNS.json", "w") as f:
+    #         json.dump(best_solutions_LSNS, f, indent=4)
+
     with open("Results/runtimes_MSLS_means.json", "r") as f:
         means= json.load(f)
+    # solution= generate_random_solution(10)
+    # print("Pierwotne",solution)
+    # distance_matrix = calculate_distance_matrix(instances["A"])
+    # costs = instances["A"]["cost"].to_numpy()
+    # score = objective_function(solution, distance_matrix, costs)
+    # print(score)
+    # destroyed, start = destroy(solution)
+    # print("Zniszczone",destroyed)
+    # solution = repair(destroyed, distance_matrix, 20, start)
+    # print("Naprawione",solution)
+    # score = objective_function(solution, distance_matrix, costs)
+    # print(score)
+    
+
     best_solutions_LSNS={}
     for instance in instances: 
         solutions = []
@@ -394,6 +455,7 @@ if __name__ == "__main__":
         best_solution=[]
         distance_matrix = calculate_distance_matrix(instances[instance])
         costs = instances[instance]["cost"].to_numpy()
+        epochs=[]
         for x in range(20):
             solution= generate_random_solution(100)
             s = SteepestLocalSearch(solution, distance_matrix, costs)
@@ -401,18 +463,22 @@ if __name__ == "__main__":
             best_score=score
             best_solution=solution
             start=time.time()
+            i=0
             while time.time()-start<means[instance]:
+                i+=1
+                destroyed,start_idx = destroy(best_solution)
+                solution = repair(destroyed, distance_matrix, 100,start_idx)
+                score = objective_function(solution, distance_matrix, costs)
                 
-                destroyed = destroy(best_solution)
-                repaired = repair(destroyed, distance_matrix, 100)
-                
-                s = SteepestLocalSearch(repaired, distance_matrix, costs)
-                solution, score = s.run(repaired, ["inter","edges"], show_progress=False)
+                # s = SteepestLocalSearch(repaired, distance_matrix, costs)
+                # solution, score = s.run(repaired, ["inter","edges"], show_progress=False)
                 if score<best_score:
                     best_score=score
                     best_solution=solution
+                # print("Best_score",best_score, objective_function(best_solution,distance_matrix, costs))
+               
                 
-
+            epochs.append(i)
             solutions.append((best_solution,best_score))
             end_time = time.time()
             runtimes.append(end_time-start)
@@ -422,10 +488,11 @@ if __name__ == "__main__":
         print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
         print("Runtimes for instance-"+instance)
         print(f"Average runtime: {np.mean(runtimes)}, min runtime: {min(runtimes)}, max runtime: {max(runtimes)}")
+        print(f"Avg number of iterations:{np.mean(epochs)}")
         best_solution = min(solutions, key=lambda x: x[1])
         best_solutions_LSNS["LSNS-best-score-"+str(instance)] = best_solution
 
-        with open("Results/best_solutions_LSNS.json", "w") as f:
+        with open("Results/best_solutions_LSNS_2.json", "w") as f:
             json.dump(best_solutions_LSNS, f, indent=4)
 
             
