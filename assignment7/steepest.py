@@ -295,12 +295,14 @@ def perturb(current_solution: list[int],
 
 
     return current_solution
-def generate_greedy_weight_regret(dist_matrix, current_solution, num_select, a, start_idx):
+def generate_greedy_weight_regret(dist_matrix, costs, current_solution, num_select, a, start_idx):
     num_nodes = dist_matrix.shape[0]
     selected_nodes = current_solution[start_idx:]+current_solution[:start_idx]
     start=selected_nodes[-1]
     unselected_nodes = set(range(num_nodes)) - set(current_solution)
     total_distance = 0
+    initial_score=objective_function(selected_nodes,dist_matrix,costs)
+    
 
     # Continue until we've selected the required number of nodes
     while len(selected_nodes) < num_select:
@@ -317,9 +319,12 @@ def generate_greedy_weight_regret(dist_matrix, current_solution, num_select, a, 
             # Try inserting between each pair of consecutive nodes in the cycle
             for i in range(selected_nodes.index(start),len(selected_nodes)):
                 # Calculate the increase in distance
+                
                 next_i = (i + 1) % len(selected_nodes)
+                # print(selected_nodes.index(start))
                 increase = (dist_matrix[selected_nodes[i], node] +
-                            dist_matrix[node, selected_nodes[next_i]] -
+                            dist_matrix[node, selected_nodes[next_i]]+
+                            costs[node]-
                             dist_matrix[selected_nodes[i], selected_nodes[next_i]])
                 
                 # Check if it is the best position
@@ -327,7 +332,8 @@ def generate_greedy_weight_regret(dist_matrix, current_solution, num_select, a, 
                     if increase < best_min_increase:
                         best_min_increase = increase
                         best_node = node
-                        best_position = next_i  # Insert before next_i
+                        best_position = next_i 
+                         # Insert before next_i
                     #or the second best position
                     else: 
                         second_best_min_increase = increase
@@ -340,17 +346,19 @@ def generate_greedy_weight_regret(dist_matrix, current_solution, num_select, a, 
                 score_node =  best_node
                 score_position = best_position 
                 score_best_increase = best_min_increase
+        
                     
 
         # Insert the best node into the cycle
-        selected_nodes.insert(score_position, score_node)
+        if score_position==0:
+            selected_nodes.append(score_node)
+            # print(selected_nodes, score_node)
+        else:
+            selected_nodes.insert(score_position, score_node)
+        # print(selected_nodes,score_position)
         unselected_nodes.remove(score_node)
         total_distance += score_best_increase
         
-
-    # Complete the cycle
-    total_distance += dist_matrix[selected_nodes[-1], selected_nodes[0]]
-
     return selected_nodes
 
 
@@ -368,9 +376,9 @@ def destroy(current_solution: list[int]):
     # print(solution)
     return solution, start
     
-def repair(current_solution: list[int],distance_matrix: list[list[int]], num_nodes, start_node):
+def repair(current_solution: list[int],distance_matrix: list[list[int]],costs, num_nodes, start_node):
     start_idx= current_solution.index(start_node)+1
-    selected_nodes = generate_greedy_weight_regret(distance_matrix, current_solution, num_nodes, 0.5, start_idx)
+    selected_nodes = generate_greedy_weight_regret(distance_matrix,costs, current_solution, num_nodes, 0.5, start_idx)
     return selected_nodes
     
     
@@ -405,7 +413,7 @@ if __name__ == "__main__":
     #             i+=1
                 
     #             destroyed, start_idx = destroy(best_solution)
-    #             repaired = repair(destroyed, distance_matrix, 100, start_idx)
+    #             repaired = repair(destroyed, distance_matrix, costs 100, start_idx)
 
                 
     #             s = SteepestLocalSearch(repaired, distance_matrix, costs)
@@ -432,9 +440,8 @@ if __name__ == "__main__":
     #     with open("Results/best_solutions_LSNS.json", "w") as f:
     #         json.dump(best_solutions_LSNS, f, indent=4)
 
-    with open("Results/runtimes_MSLS_means.json", "r") as f:
-        means= json.load(f)
-    # solution= generate_random_solution(10)
+
+    # solution= generate_random_solution(20)
     # print("Pierwotne",solution)
     # distance_matrix = calculate_distance_matrix(instances["A"])
     # costs = instances["A"]["cost"].to_numpy()
@@ -442,12 +449,13 @@ if __name__ == "__main__":
     # print(score)
     # destroyed, start = destroy(solution)
     # print("Zniszczone",destroyed)
-    # solution = repair(destroyed, distance_matrix, 20, start)
+    # solution = repair(destroyed, distance_matrix,costs,20, start)
     # print("Naprawione",solution)
     # score = objective_function(solution, distance_matrix, costs)
     # print(score)
     
-
+    with open("Results/runtimes_MSLS_means.json", "r") as f:
+        means= json.load(f)
     best_solutions_LSNS={}
     for instance in instances: 
         solutions = []
@@ -467,15 +475,17 @@ if __name__ == "__main__":
             while time.time()-start<means[instance]:
                 i+=1
                 destroyed,start_idx = destroy(best_solution)
-                solution = repair(destroyed, distance_matrix, 100,start_idx)
+                solution = repair(destroyed, distance_matrix, costs, 100, start_idx)
                 score = objective_function(solution, distance_matrix, costs)
+                
                 
                 # s = SteepestLocalSearch(repaired, distance_matrix, costs)
                 # solution, score = s.run(repaired, ["inter","edges"], show_progress=False)
                 if score<best_score:
                     best_score=score
                     best_solution=solution
-                # print("Best_score",best_score, objective_function(best_solution,distance_matrix, costs))
+                
+                print("Best_score",best_score, score)
                
                 
             epochs.append(i)
