@@ -412,8 +412,9 @@ def run_algorithm(distance_matrix, costs, time_mean):
         i+=1
         destroyed, start_idx = destroy_heuristic(best_solution, distance_matrix, costs)
         solution = repair(destroyed, distance_matrix, costs, 100, start_idx)
-        score = objective_function(solution, distance_matrix, costs)
-
+        s = SteepestLocalSearch(solution, distance_matrix, costs)
+        solution, score = s.run(solution, ["inter","edges"], show_progress=False)
+        
         if score < best_score:
             best_score = score
             best_solution = solution
@@ -430,8 +431,8 @@ def main():
         "C": pd.read_csv("data/TSPC.csv", sep=';', header=None, names=["x", "y", "cost"]),
         "D": pd.read_csv("data/TSPD.csv", sep=';', header=None, names=["x", "y", "cost"]),
     }
-    with open("Results/runtimes_MSLS_means.json", "r") as f:
-        means= json.load(f)
+    with open("MSLS_v2.json", "r") as f:
+        means = json.load(f)
     best_solutions_LSNS={
         "A": {},
         "B": {},
@@ -447,7 +448,7 @@ def main():
         epochs=[]
 
         with ProcessPoolExecutor() as executor:
-            tasks = [executor.submit(run_algorithm, distance_matrix, costs, means[instance]) for _ in range(20)]
+            tasks = [executor.submit(run_algorithm, distance_matrix, costs, means[instance]["avg_runtime"]) for _ in range(20)]
             for task in tasks:
                 best_solution, best_score, runtime, i = task.result()
                 solutions.append((best_solution, best_score))
@@ -472,7 +473,7 @@ def main():
         best_solutions_LSNS[instance]["iterations-min"] = min(epochs)
         best_solutions_LSNS[instance]["iterations-max"] = max(epochs)
 
-    with open("results/best_solutions_LSNS_no_LS.json", "w") as f:
+    with open("results/best_solutions_LSNS_with_LS.json", "w") as f:
         json.dump(best_solutions_LSNS, f, indent=4)
 
     

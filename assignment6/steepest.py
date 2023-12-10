@@ -2,6 +2,13 @@ from typing import Literal
 from utils import *
 import heapq
 
+from concurrent.futures import ProcessPoolExecutor
+
+pool_executor = ProcessPoolExecutor()
+
+import time
+from tqdm import tqdm
+
 
 
 class SteepestLocalSearch():
@@ -289,11 +296,49 @@ def perturb(current_solution: list[int],
                     + current_solution[k :])
 
         current_solution = new_solution
-
-
-
-
     return current_solution
+
+
+def run_msls_algorithm(distance_matrix, costs):
+    start_time = time.time()
+    best_score=float('inf')
+    trials = 200
+    for i in tqdm(range(trials)):
+        random_solution = generate_random_solution(100)
+        s = SteepestLocalSearch(initial_solution=random_solution,
+                    distance_matrix=distance_matrix, 
+                    costs=costs,)
+        solution, score= s.run(random_solution, ["inter","edges"], show_progress=False)
+        
+        if best_score>score:
+            best_score=score
+            best_solution=solution
+
+    end_time = time.time()
+    runtime = end_time-start_time
+    return best_solution, best_score, runtime
+
+
+def run_ils_algorithm(distance_matrix, costs, mean_time):
+    solution= generate_random_solution(100)
+    s = SteepestLocalSearch(solution, distance_matrix, costs)
+    solution, score = s.run(solution, ["inter","edges"], show_progress=False)
+    best_score = score
+    best_solution = solution.copy()
+    start=time.time()
+    n_epochs = 0
+    while time.time()-start < mean_time:
+        perturbed = perturb(best_solution, best_score, distance_matrix )
+        s = SteepestLocalSearch(perturbed, distance_matrix, costs)
+        solution, score = s.run(perturbed, ["inter","edges"], show_progress=False)
+        if score<best_score:
+            best_score=score
+            best_solution=solution
+        n_epochs+=1
+    runtime = time.time()-start
+    return best_solution, best_score, runtime, n_epochs
+    
+    
     
     
 if __name__ == "__main__":
@@ -303,101 +348,116 @@ if __name__ == "__main__":
         "C": pd.read_csv("data/TSPC.csv", sep=';', header=None, names=["x", "y", "cost"]),
         "D": pd.read_csv("data/TSPD.csv", sep=';', header=None, names=["x", "y", "cost"]),
     } 
-    instance = instances["A"]
-    distance_matrix = calculate_distance_matrix(instance)
-    costs = instance["cost"].to_numpy()
+    # instance = instances["A"]
+    # distance_matrix = calculate_distance_matrix(instance)
+    # costs = instance["cost"].to_numpy()
     import time   
                     
 
     from tqdm import tqdm            
 
 
-    best_solutions_MSLS = {}
-    runtimes = []
-    trials = 200
-    global_runtimes = {}
-    for instance in instances: 
-        global_runtimes[instance]=[]
-        distance_matrix = calculate_distance_matrix(instances[instance])
-        costs = instances[instance]["cost"].to_numpy()
+    # best_solutions_MSLS = {
+    #     "A": {},
+    #     "B": {},
+    #     "C": {},
+    #     "D": {}
+    # }
+    # runtimes = []
+    # trials = 200
+    # for instance in instances: 
+    #     distance_matrix = calculate_distance_matrix(instances[instance])
+    #     costs = instances[instance]["cost"].to_numpy()
+    #     solutions = []
+    #     runtimes = []
+    #     best_solution=[]
+        
+    #     with ProcessPoolExecutor(max_workers=5) as executor:
+    #         tasks = [executor.submit(run_msls_algorithm, distance_matrix, costs) for _ in range(20)]
+    #         for task in tasks:
+    #             solution, score, runtime = task.result()
+    #             solutions.append((solution, score))
+    #             runtimes.append(runtime)
+        
+        
+    #     print("Solutions for instance-"+instance)
+    #     print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
+    #     print("Runtimes for instance-"+instance)
+    #     print(f"Average runtime: {np.mean(runtimes)}, min runtime: {min(runtimes)}, max runtime: {max(runtimes)}")
+    #     best_solution = min(solutions, key=lambda x: x[1])
+    #     best_solutions_MSLS[instance]["best_path"] = best_solution[0]
+    #     best_solutions_MSLS[instance]["best_score"] = best_solution[1]
+        
+    #     best_solutions_MSLS[instance]["avg-score"] = np.mean([x[1] for x in solutions])
+    #     best_solutions_MSLS[instance]["min-score"] = min([x[1] for x in solutions])
+    #     best_solutions_MSLS[instance]["max-score"] = max([x[1] for x in solutions])
+        
+    #     best_solutions_MSLS[instance]["min_runtime"] = min(runtimes)
+    #     best_solutions_MSLS[instance]["max_runtime"] = max(runtimes)
+    #     best_solutions_MSLS[instance]["avg_runtime"] = np.mean(runtimes)
+        
+    # import json
+    # with open("MSLS_v2.json", "w") as f:
+    #     json.dump(best_solutions_MSLS, f, indent=4)
+        
+    # import json
+    # # with open("best_solutions_MSLS.json", "w") as f:
+    # #     json.dump(best_solutions_MSLS, f, indent=4)
+    # # with open("runtimes_MSLS.json", "w") as f:
+    # #     json.dump(global_runtimes, f, indent=4) 
+    # # with open("runtimes_MSLS.json", "r") as f:
+    # #     data = json.load(f)
+    # # means = {}
+    # # for key, values in data.items():
+    # #     mean_value = sum(values) / len(values)
+    # #     means[key] = mean_value
+    import json
+    with open("MSLS_v2.json", "r") as f:
+        means = json.load(f)
+    best_solutions_ILS={
+        "A": {},
+        "B": {},
+        "C": {},
+        "D": {}
+    }
+    for instance in instances:
+        avg_time = means[instance]["avg_runtime"]
         solutions = []
         runtimes = []
-        best_solution=[]
-        
-        for x in range(20):
-            start_time = time.time()
-            best_score=float('inf')
-            for i in tqdm(range(trials)):
-                random_solution = generate_random_solution(100)
-                s = SteepestLocalSearch(initial_solution=random_solution,
-                            distance_matrix=distance_matrix, 
-                            costs=costs,)
-                solution, score= s.run(random_solution, ["inter","edges"], show_progress=False)
-                
-                if best_score>score:
-                    best_score=score
-                    best_solution=solution
-            solutions.append((best_solution, best_score))
-            end_time = time.time()
-            runtimes.append(end_time-start_time)
-            global_runtimes[instance].append(end_time-start_time)
-        print("Solutions for instance-"+instance)
-        print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
-        print("Runtimes for instance-"+instance)
-        print(f"Average runtime: {np.mean(runtimes)}, min runtime: {min(runtimes)}, max runtime: {max(runtimes)}")
-        best_solution = min(solutions, key=lambda x: x[1])
-        best_path = min(solutions, key=lambda x: x[0])
-        best_solutions_MSLS["MSL-best-path"+str(instance)] = best_path
-        best_solutions_MSLS["MSL-best-score-"+str(instance)] = best_solution
-        print("Best_score",best_solution[1])
-    import json
-    # with open("best_solutions_MSLS.json", "w") as f:
-    #     json.dump(best_solutions_MSLS, f, indent=4)
-    # with open("runtimes_MSLS.json", "w") as f:
-    #     json.dump(global_runtimes, f, indent=4) 
-    # with open("runtimes_MSLS.json", "r") as f:
-    #     data = json.load(f)
-    # means = {}
-    # for key, values in data.items():
-    #     mean_value = sum(values) / len(values)
-    #     means[key] = mean_value
-    with open("runtimes_MSLS_means.json", "r") as f:
-        means= json.load(f)
-    best_solutions_ILS={}
-    for instance in instances:
-        solutions = []
-        runtimes = [] 
-        best_solution=[]
+        epochs = []
         distance_matrix = calculate_distance_matrix(instances[instance])
         costs = instances[instance]["cost"].to_numpy()
-        for x in range(20):
-            solution= generate_random_solution(100)
-            s = SteepestLocalSearch(solution, distance_matrix, costs)
-            solution, score = s.run(solution, ["inter","edges"], show_progress=False)
-            best_score=score
-            start=time.time()
-            while time.time()-start<means[instance]:
-                perturbed = perturb(solution,score, distance_matrix )
-                s = SteepestLocalSearch(perturbed, distance_matrix, costs)
-                solution, score = s.run(perturbed, ["inter","edges"], show_progress=False)
-                if score<best_score:
-                    best_score=score
-                    best_solution=solution
-            solutions.append((best_solution,best_score))
-            end_time = time.time()
-            runtimes.append(end_time-start)
+        
+        with ProcessPoolExecutor(max_workers=5) as executor:
+            tasks = [executor.submit(run_ils_algorithm, distance_matrix, costs, avg_time) for _ in range(20)]
+            for task in tasks:
+                solution, score, runtime, n_epoch = task.result()
+                solutions.append((solution, score))
+                runtimes.append(runtime)
+                epochs.append(n_epoch)
 
         print("Solutions for instance-"+instance)
         print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
         print("Runtimes for instance-"+instance)
         print(f"Average runtime: {np.mean(runtimes)}, min runtime: {min(runtimes)}, max runtime: {max(runtimes)}")
         best_solution = min(solutions, key=lambda x: x[1])
-        # best_path = min(solutions, key=lambda x: x[0])
-        # best_solutions_ILS["MSL-best-path"+str(instance)] = best_path
-        best_solutions_ILS["MSL-best-score-"+str(instance)] = best_solution
-        print("Best_score",best_solution[1])
+        best_solution = min(solutions, key=lambda x: x[1])
+        best_solutions_ILS[instance]["best_path"] = best_solution[0]
+        best_solutions_ILS[instance]["best_score"] = best_solution[1]
+        
+        best_solutions_ILS[instance]["avg-score"] = np.mean([x[1] for x in solutions])
+        best_solutions_ILS[instance]["min-score"] = min([x[1] for x in solutions])
+        best_solutions_ILS[instance]["max-score"] = max([x[1] for x in solutions])
+        
+        best_solutions_ILS[instance]["min_runtime"] = min(runtimes)
+        best_solutions_ILS[instance]["max_runtime"] = max(runtimes)
+        best_solutions_ILS[instance]["avg_runtime"] = np.mean(runtimes)
+        
+        best_solutions_ILS[instance]["min_epochs"] = min(epochs)
+        best_solutions_ILS[instance]["max_epochs"] = max(epochs)
+        best_solutions_ILS[instance]["avg_epochs"] = np.mean(epochs)
 
-    with open("best_solutions_ILS.json", "w") as f:
+    with open("ILS_v2.json", "w") as f:
         json.dump(best_solutions_ILS, f, indent=4)
             
                 
