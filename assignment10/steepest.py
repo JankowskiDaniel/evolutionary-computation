@@ -10,6 +10,7 @@ import pandas as pd
 
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import ThreadPoolExecutor
+from collections import defaultdict
 
 pool_executor = ProcessPoolExecutor()
 
@@ -81,29 +82,29 @@ class SteepestLocalSearch():
     
     
     def first_inter_route_exchange(self):
-        n_unselected = len(self.unselected_nodes)
-        
-        # Create all possible combinations of selected and unselected nodes
-        all_combinations = [(i, j) for i in range(self.n) for j in range(n_unselected)]
-        for i, j in all_combinations:
-            selected_node = self.current_solution[i]
-            new_node = self.unselected_nodes[j]
-            new_solution = self.current_solution.copy()
-            new_solution[i] = new_node
-            prev_node_index = (i - 1) % self.n
-            next_node_index = (i + 1) % self.n
-            score_delta = (
-                -self.distance_matrix[self.current_solution[prev_node_index]][selected_node]
-                -self.distance_matrix[selected_node][self.current_solution[next_node_index]]
-                +self.distance_matrix[self.current_solution[prev_node_index]][new_node]
-                +self.distance_matrix[new_node][self.current_solution[next_node_index]]
-                -self.costs[selected_node]
-                +self.costs[new_node]
-            )
-            if score_delta < 0:
-                added_edges = ((self.current_solution[prev_node_index], new_node), (new_node, self.current_solution[next_node_index]))
-                removed_edges = ((self.current_solution[prev_node_index], selected_node), (selected_node, self.current_solution[next_node_index]))
-                heapq.heappush(self.lm, (score_delta, ("inter", added_edges, removed_edges, "normal")))
+            n_unselected = len(self.unselected_nodes)
+            
+            # Create all possible combinations of selected and unselected nodes
+            all_combinations = [(i, j) for i in range(self.n) for j in range(n_unselected)]
+            for i, j in all_combinations:
+                selected_node = self.current_solution[i]
+                new_node = self.unselected_nodes[j]
+                new_solution = self.current_solution.copy()
+                new_solution[i] = new_node
+                prev_node_index = (i - 1) % self.n
+                next_node_index = (i + 1) % self.n
+                score_delta = (
+                    -self.distance_matrix[self.current_solution[prev_node_index]][selected_node]
+                    -self.distance_matrix[selected_node][self.current_solution[next_node_index]]
+                    +self.distance_matrix[self.current_solution[prev_node_index]][new_node]
+                    +self.distance_matrix[new_node][self.current_solution[next_node_index]]
+                    -self.costs[selected_node]
+                    +self.costs[new_node]
+                )
+                if score_delta < 0:
+                    added_edges = ((self.current_solution[prev_node_index], new_node), (new_node, self.current_solution[next_node_index]))
+                    removed_edges = ((self.current_solution[prev_node_index], selected_node), (selected_node, self.current_solution[next_node_index]))
+                    heapq.heappush(self.lm, (score_delta, ("inter", added_edges, removed_edges, "normal")))
                 
     def two_edges_exchange(self, affected_nodes: tuple[int, int, int, int]) -> None:
         node1, node2, node3, node4 = affected_nodes
@@ -313,25 +314,20 @@ def find_common_edges(path1: list[int], path2: list[int], n: int = 100) -> set[t
 
 def connect_edges(edges: set[tuple[int, int]]) -> list[tuple[int]]:
     # Create a dictionary to represent the graph
-    graph = {}
-    for edge in edges:
-        u, v = edge
-        if u not in graph:
-            graph[u] = set()
-        if v not in graph:
-            graph[v] = set()
-
-        # Assuming one-directional edges
+    graph = defaultdict(set)
+    for u, v in edges:
         graph[u].add(v)
 
-    # Perform depth-first search to form connected components
     visited = set()
     connected_components = []
+
+    # Perform depth-first search to form connected components
+
 
     def dfs(node, component):
         visited.add(node)
         component.append(node)
-        for neighbor in graph.get(node, []):
+        for neighbor in graph[node]:
             if neighbor not in visited:
                 dfs(neighbor, component)
 
@@ -339,11 +335,9 @@ def connect_edges(edges: set[tuple[int, int]]) -> list[tuple[int]]:
         if node not in visited:
             component = []
             dfs(node, component)
-            connected_components.append(component)
+            connected_components.append(tuple(component))
 
-    # Create a list of connected components as output
-    result = [tuple(component) for component in connected_components]
-    return result
+    return connected_components
 
 
 def split(a, n):
@@ -352,12 +346,10 @@ def split(a, n):
 
 
 def fill_path(subpaths: list[tuple[int]], n: int = 100) -> list[int]:
-    current_path_len = sum(len(subpath) for subpath in subpaths)
-    nodes_left = n - current_path_len
-    all_nodes = set(range(n*2))
-    unselected_nodes = all_nodes - set(node for subpath in subpaths for node in subpath)
+
+    unselected_nodes = set(range(n*2)) - {node for subpath in subpaths for node in subpath}
     unselected_nodes = list(unselected_nodes)
-    additional_nodes = random.sample(unselected_nodes, nodes_left)
+    additional_nodes = random.sample(unselected_nodes, n - sum(len(subpath) for subpath in subpaths))
     random.shuffle(additional_nodes)
     split_additional_nodes = list(split(additional_nodes, len(subpaths)))
     path = []
@@ -366,16 +358,36 @@ def fill_path(subpaths: list[tuple[int]], n: int = 100) -> list[int]:
         path.extend(additional_nodes)
     return path
 
+def perturb(current_solution: list[int]):
+    l = len(current_solution)
+    for x in range(3):
+        i = random.randint(2,l-2)
+
+        j = random.randint(0,i-1)
+
+        k = random.randint(j+2,l)
+
+        m = random.randint(0,k-1)
+
+        new_solution = (current_solution[:j ] 
+                    + current_solution[j :i ][::-1] 
+                    + current_solution[i :])
+        current_solution = new_solution
+        new_solution = (current_solution[:m ] 
+                    + current_solution[m :k ][::-1] 
+                    + current_solution[k :])
+
+        current_solution = new_solution
+    return current_solution
 
 def recombine_subpath_operator(parent1: list[int], parent2: list[int]) -> list[int]:
     offspring = []
+    # parent1 = perturb(parent1)
     n = len(parent1)
     num_nodes = 20
     while len(offspring) < n:
         random_start = random.randint(0, len(parent1) - num_nodes)    
         random_subpath = parent1[random_start : random_start + num_nodes]
-        random_subpath = set(random_subpath
-                             )
         
         parent1 = [el for el in parent1 if el not in random_subpath]
         parent2 = [el for el in parent2 if el not in random_subpath]
@@ -401,27 +413,33 @@ def create_offspring_solution(parent1: list[int], parent2: list[int]) -> list[in
         return offspring
 
 
-def run_algorithm(distance_matrix: list[list[int]], costs: list[int], avg_runtime: int, num_offsprings: int) -> tuple[list[int], int, float, int]:
+
+
+def run_algorithm(distance_matrix: list[list[int]], costs: list[int], avg_runtime: int) -> tuple[list[int], int, float, int]:
     population = generate_init_population(100, 30)
     population = [(solution, objective_function(solution, distance_matrix, costs)) for solution in population]
     start_time = time.time()
     worst_solution = max(population, key=lambda x: x[1])
     all_scores = [x[1] for x in population]
     i = 0
-    with ThreadPoolExecutor() as executor:
-        while time.time() - start_time < avg_runtime:
-            i += 1
-            parents = [select_random_parents(population) for _ in range(num_offsprings)]
-            offsprings = [create_offspring_solution(parent1[0], parent2[0]) for parent1, parent2 in parents]
-            futures = [executor.submit(SteepestLocalSearch(offspring, distance_matrix, costs).run, offspring, ["inter","edges"], False) for offspring in offsprings]
-            for future in futures:
-                offspring, offspring_score = future.result()
-                if offspring_score < worst_solution[1] and offspring_score not in all_scores:
-                    population.remove(worst_solution)
-                    population.append((offspring, offspring_score))
-                    all_scores.remove(worst_solution[1])
-                    all_scores.append(offspring_score)
-                    worst_solution = max(population, key=lambda x: x[1])
+    while time.time() - start_time < avg_runtime:
+        i += 1
+        # if i ==1200:
+        #     break
+        if i%2 == 0:
+            parent1, parent2 = select_random_parents(population)
+            offspring = create_offspring_solution(parent1[0], parent2[0])
+        else:
+            parent1, parent2 = select_random_parents(population)
+            offspring = perturb(parent1[0])
+        s = SteepestLocalSearch(offspring, distance_matrix, costs)
+        offspring, offspring_score = s.run(offspring, ["inter","edges"], show_progress=False)
+        if offspring_score < worst_solution[1] and offspring_score not in all_scores:
+            population.remove(worst_solution)
+            population.append((offspring, offspring_score))
+            all_scores.remove(worst_solution[1])
+            all_scores.append(offspring_score)
+            worst_solution = max(population, key=lambda x: x[1])
     end_time = time.time()
     runtime = end_time-start_time
     best_solution, best_score = min(population, key=lambda x: x[1])
@@ -451,13 +469,14 @@ def main():
         distance_matrix = calculate_distance_matrix(instances[instance])
         costs = instances[instance]["cost"].to_numpy()
         epochs=[]
-
-        for _ in tqdm(range(20), desc=f"Processing instance {instance}"):
-            best_solution, best_score, runtime, i = run_algorithm(distance_matrix, costs, means[instance]["avg_runtime"],5)
-            solutions.append((best_solution, best_score))
-            runtimes.append(runtime)
-            epochs.append(i)
-            print(best_score,epochs)
+        with ProcessPoolExecutor(max_workers=5) as executor:
+            tasks = [executor.submit(run_algorithm, distance_matrix, costs, means[instance]["avg_runtime"]) for _ in range(20)]
+            for task in tasks:
+                best_solution, best_score, runtime, i = task.result()
+                solutions.append((best_solution, best_score))
+                runtimes.append(runtime)
+                epochs.append(i)
+                print(f" best score: {best_score}, iterations: {epochs}")
 
         print("Solutions for instance-"+instance)
         print(f"Average score: {np.mean([x[1] for x in solutions])}, min score: {min([x[1] for x in solutions])}, max score: {max([x[1] for x in solutions])}")
